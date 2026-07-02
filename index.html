@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Findings Matrix</title>
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --border-color: #e2e8f0;
+            
+            /* Status Colors */
+            --color-pass: #dcfce7;
+            --text-pass: #15803d;
+            --color-fail: #fee2e2;
+            --text-fail: #b91c1c;
+            --color-warn: #fef9c3;
+            --text-warn: #a16207;
+            --color-missing: #f1f5f9;
+            --text-missing: #64748b;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            margin: 0 0 8px 0;
+            font-size: 24px;
+        }
+
+        p {
+            margin: 0;
+            color: #64748b;
+        }
+
+        /* Matrix Table Styling */
+        .matrix-wrapper {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        th, td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: #f1f5f9;
+            font-weight: 600;
+        }
+
+        /* Sticky first column for security features */
+        td:first-child, th:first-child {
+            font-weight: 600;
+            background-color: #ffffff;
+            position: sticky;
+            left: 0;
+            border-right: 2px solid var(--border-color);
+            z-index: 1;
+        }
+        
+        th:first-child {
+            background-color: #f1f5f9;
+        }
+
+        /* Center alignment for project columns */
+        td:not(:first-child), th:not(:first-child) {
+            text-align: center;
+        }
+
+        /* Status Pill Badges */
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer; /* Changed to pointer to imply clickability */
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+        }
+
+        .status-badge:hover {
+            transform: scale(1.05);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .status-pass { background-color: var(--color-pass); color: var(--text-pass); }
+        .status-fail { background-color: var(--color-fail); color: var(--text-fail); }
+        .status-warn { background-color: var(--color-warn); color: var(--text-warn); }
+        .status-missing { background-color: var(--color-missing); color: var(--text-missing); }
+
+        /* --- MODAL DIALOG POPUP STYLES --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(15, 23, 42, 0.4); /* Dim underlying content */
+            backdrop-filter: blur(2px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        /* Active Modal State */
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            background: #ffffff;
+            padding: 24px;
+            border-radius: 12px;
+            max-width: 450px;
+            width: 90%;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            position: relative;
+            transform: scale(0.95);
+            transition: transform 0.2s ease;
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+        }
+
+        .modal-title {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 0 4px;
+            line-height: 1;
+        }
+
+        .close-btn:hover {
+            color: var(--text-main);
+        }
+
+        .modal-meta {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 12px;
+        }
+
+        .modal-body-text {
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: 6px;
+            border-left: 4px solid var(--border-color);
+            font-family: monospace;
+            white-space: pre-wrap;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Project Security Posture Matrix</h1>
+        <p>Click on any status badge to view breakdown details.</p>
+    </header>
+
+    <div class="matrix-wrapper">
+        <table id="securityMatrix">
+            <thead>
+                <tr id="headerRow">
+                    <th>Security Features</th>
+                </tr>
+            </thead>
+            <tbody id="matrixBody">
+                </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title" id="modalProjectName">Project Name</h3>
+            <button class="close-btn" id="closeModalBtn">&times;</button>
+        </div>
+        <div class="modal-meta">
+            <strong id="modalFeatureName">Feature</strong> &bull; Score: <span id="modalScore">0%</span>
+        </div>
+        <pre class="modal-body-text" id="modalDetails">Details will load here...</pre>
+    </div>
+</div>
+
+<script>
+    const projects = [
+        { id: "p1", name: "E-Commerce API" },
+        { id: "p2", name: "Customer Portal" },
+        { id: "p3", name: "Analytics Dashboard" },
+        { id: "p4", name: "Mobile Auth Service" }
+    ];
+
+    const securityFeatures = [
+        { id: "f1", name: "SAST Scanning" },
+        { id: "f2", name: "Dependency Check (SCA)" },
+        { id: "f3", name: "Container Hardening" },
+        { id: "f4", name: "DAST / Pen Testing" },
+        { id: "f5", name: "Secrets Detection" }
+    ];
+
+    const securityMatrixScores = {
+        "p1-f1": { score: 95, status: "Pass", details: "0 High, 2 Low findings\nScan frequency: Every commit\nTool: SonarQube" },
+        "p1-f2": { score: 40, status: "Fail", details: "3 Critical CVEs found\n- CVE-2025-XXXX (RCE)\n- CVE-2026-0112 (Denial of Service)" },
+        "p1-f3": { score: 85, status: "Pass", details: "Standard baseline met\nNo root user detected inside image profile." },
+        "p1-f4": { score: 0,  status: "Missing", details: "Not configured.\nAction required: Add OWASP ZAP to pipeline." },
+        "p1-f5": { score: 100, status: "Pass", details: "No secrets leaked in production branch histories." },
+
+        "p2-f1": { score: 88, status: "Pass", details: "1 Medium finding resolved.\nMinor legacy framework warning." },
+        "p2-f2": { score: 90, status: "Pass", details: "All clear\nDependencies audited." },
+        "p2-f3": { score: 0,  status: "Missing", details: "Serverless Deployment - Container Hardening N/A" },
+        "p2-f4": { score: 75, status: "Warn", details: "Last manual test 6 months ago.\nScheduled auto-test pending update." },
+        "p2-f5": { score: 100, status: "Pass", details: "No secrets leaked." },
+
+        "p3-f1": { score: 30, status: "Fail", details: "Hardcoded credentials found!\n- config/db.json line 14." },
+        "p3-f2": { score: 55, status: "Warn", details: "Outdated node module framework versions in package.json." },
+        "p3-f3": { score: 90, status: "Pass", details: "Distroless base image used successfully." },
+        "p3-f4": { score: 0,  status: "Missing", details: "Not configured for pipeline runs." },
+        "p3-f5": { score: 45, status: "Fail", details: "Active AWS access keys identified in historical Git logs." },
+
+        "p4-f1": { score: 100, status: "Pass", details: "Clean baseline build. 0 vulnerabilities." },
+        "p4-f2": { score: 95, status: "Pass", details: "All high-impact dependencies updated." },
+        "p4-f3": { score: 100, status: "Pass", details: "Highly hardened Linux alpine footprint container base." },
+        "p4-f4": { score: 90, status: "Pass", details: "External application penetration audit successfully passed." },
+        "p4-f5": { score: 100, status: "Pass", details: "No dynamic secrets leaked." }
+    };
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const headerRow = document.getElementById("headerRow");
+        const matrixBody = document.getElementById("matrixBody");
+        
+        // Modal Element References
+        const modalOverlay = document.getElementById("modalOverlay");
+        const closeModalBtn = document.getElementById("closeModalBtn");
+        const modalProjectName = document.getElementById("modalProjectName");
+        const modalFeatureName = document.getElementById("modalFeatureName");
+        const modalScore = document.getElementById("modalScore");
+        const modalDetails = document.getElementById("modalDetails");
+
+        // Helper Function to Control Modal Display
+        const openModal = (projName, featName, scoreData) => {
+            modalProjectName.textContent = projName;
+            modalFeatureName.textContent = featName;
+            modalScore.textContent = scoreData.status === "Missing" ? "N/A" : `${scoreData.score}% (${scoreData.status})`;
+            modalDetails.textContent = scoreData.details;
+            
+            modalOverlay.classList.add("active");
+        };
+
+        const closeModal = () => {
+            modalOverlay.classList.remove("active");
+        };
+
+        // Modal Close Listeners
+        closeModalBtn.addEventListener("click", closeModal);
+        modalOverlay.addEventListener("click", (e) => {
+            if (e.target === modalOverlay) closeModal(); // Close if background clicked
+        });
+
+        // Generate Table Header Columns
+        projects.forEach(project => {
+            const th = document.createElement("th");
+            th.textContent = project.name;
+            headerRow.appendChild(th);
+        });
+
+        // Generate Table Rows and attach individual click triggers
+        securityFeatures.forEach(feature => {
+            const tr = document.createElement("tr");
+            
+            const tdFeature = document.createElement("td");
+            tdFeature.textContent = feature.name;
+            tr.appendChild(tdFeature);
+
+            projects.forEach(project => {
+                const tdScore = document.createElement("td");
+                const key = `${project.id}-${feature.id}`;
+                const data = securityMatrixScores[key];
+
+                if (data) {
+                    const badge = document.createElement("span");
+                    badge.className = `status-badge status-${data.status.toLowerCase()}`;
+                    badge.textContent = data.status === "Missing" ? "Missing" : `${data.score}%`;
+                    
+                    // Trigger modal window pass dynamically on badge click
+                    badge.addEventListener("click", () => {
+                        openModal(project.name, feature.name, data);
+                    });
+
+                    tdScore.appendChild(badge);
+                } else {
+                    tdScore.textContent = "-";
+                }
+                
+                tr.appendChild(tdScore);
+            });
+
+            matrixBody.appendChild(tr);
+        });
+    });
+</script>
+
+</body>
+</html>
